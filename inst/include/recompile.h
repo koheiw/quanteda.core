@@ -12,7 +12,7 @@ inline bool is_duplicated(Types types){
     std::sort(types.begin(), types.end());
     if (types.size() <= 1) return false;
     for (std::size_t i = 0; i < types.size() - 1; i++) {
-        if (types[i] != "" && types[i] == types[i + 1]) {
+        if (types[i] == types[i + 1]) {
             return true;
         }
     }
@@ -36,10 +36,19 @@ inline bool is_encoded(CharacterVector types_){
     return false;
 }
 
-inline CharacterVector encode(Types types){
-    CharacterVector types_(types.size());
-    for (std::size_t i = 0; i < types.size(); i++) {
-        String type_ = types[i];
+// inline CharacterVector encode(Types types){
+//     CharacterVector types_(types.size());
+//     for (std::size_t i = 0; i < types.size(); i++) {
+//         String type_ = types[i];
+//         type_.set_encoding(CE_UTF8);
+//         types_[i] = type_;
+//     }
+//     return(types_);
+// }
+
+inline CharacterVector encode(CharacterVector types_){
+    for (unsigned int  i = 0; i < (unsigned int)types_.size(); i++) {
+        String type_ = types_[i];
         type_.set_encoding(CE_UTF8);
         types_[i] = type_;
     }
@@ -47,17 +56,20 @@ inline CharacterVector encode(Types types){
 }
 
 
-struct recompile_mt : public Worker{
+struct RecompileWorker : public Worker{
     
     Texts &texts;
     VecIds &ids_new;
     
-    recompile_mt(Texts &texts_, VecIds &ids_new_):
-        texts(texts_), ids_new(ids_new_) {}
+    RecompileWorker(Texts &texts_, VecIds &ids_new_):
+                    texts(texts_), ids_new(ids_new_) {}
     
     void operator()(std::size_t begin, std::size_t end){
         for (std::size_t h = begin; h < end; h++) {
             for (std::size_t i = 0; i < texts[h].size(); i++) {
+                if (texts[h][i] >= ids_new.size()) {
+                    throw std::range_error("Invalid new tokens ID");
+                }
                 texts[h][i] = ids_new[texts[h][i]];
             }
         }
@@ -144,11 +156,9 @@ inline Tokens recompile(Texts texts,
     // Do nothing if all used and unique
     //Rcout << all_used << " " << all_unique << "\n";
     if (all_used && all_unique) {
-        CharacterVector types_;
+        CharacterVector types_ = Rcpp::wrap(types);
         if (flag_encode) {
-            types_ = encode(types);
-        } else {
-            types_ = Rcpp::wrap(types);
+            types_ = encode(types_);
         }
         Tokens texts_ = Rcpp::wrap(texts);
         texts_.attr("padding") = (bool)flags_used[0];
@@ -161,11 +171,14 @@ inline Tokens recompile(Texts texts,
     
     // Convert old IDs to new IDs
 #if QUANTEDA_USE_TBB
-    recompile_mt recompile_mt(texts, ids_new);
-    parallelFor(0, texts.size(), recompile_mt);
+    RecompileWorker recompile_worker(texts, ids_new);
+    parallelFor(0, texts.size(), recompile_worker);
 #else
     for (std::size_t h = 0; h < texts.size(); h++) {
         for (std::size_t i = 0; i < texts[h].size(); i++) {
+            if (texts[h][i] >= ids_new.size()) {
+                throw std::range_error("Invalid new tokens ID");
+            }
             texts[h][i] = ids_new[texts[h][i]];
             //Rcout << texts[h][i] << " -> " << ids_new[texts[h][i]] << "\n";
         }
@@ -184,14 +197,14 @@ inline Tokens recompile(Texts texts,
     //dev::start_timer("Wrap", timer);
     Tokens texts_ = Rcpp::wrap(texts);
     //dev::stop_timer("Wrap", timer);
-    CharacterVector types_new_;
+    
+    // dev::start_timer("Encode", timer);
+    CharacterVector types_new_ = Rcpp::wrap(types_new);
     if (flag_encode) {
-        // dev::start_timer("Encode", timer);
-        types_new_ = encode(types_new);
-        // dev::stop_timer("Encode", timer);
-    } else {
-        types_new_ = Rcpp::wrap(types_new);
+        types_new_ = encode(types_new_);
     }
+    // dev::stop_timer("Encode", timer);
+    
     texts_.attr("types") = types_new_;
     texts_.attr("padding") = (bool)flags_used[0];
     texts_.attr("class") = "tokens";
