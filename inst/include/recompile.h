@@ -57,7 +57,7 @@ struct RecompileWorker : public Worker{
     void operator()(std::size_t begin, std::size_t end){
         for (std::size_t h = begin; h < end; h++) {
             for (std::size_t i = 0; i < texts[h].size(); i++) {
-                // if (texts[h][i] < 0 || ids_new.size() <= texts[h][i] {
+                // if (texts[h][i] < 0 || ids_new.size() <= texts[h][i]) {
                 //     throw std::range_error("Invalid new token ID");
                 // }
                 texts[h][i] = ids_new[texts[h][i]];
@@ -172,22 +172,22 @@ inline Tokens recompile(Texts texts,
     //dev::start_timer("Convert IDs", timer);
     
     // Convert old IDs to new IDs
-#if QUANTEDA_USE_TBB
-    RecompileWorker recompile_worker(texts, ids_new);
-    parallelFor(0, texts.size(), recompile_worker);
-#else
+// #if QUANTEDA_USE_TBB
+//     RecompileWorker recompile_worker(texts, ids_new);
+//     parallelFor(0, texts.size(), recompile_worker);
+// #else
     for (std::size_t h = 0; h < texts.size(); h++) {
         for (std::size_t i = 0; i < texts[h].size(); i++) {
-            // if (texts[h][i] < 0 || ids_new.size() <= texts[h][i] {
-            //     throw std::range_error("Invalid new token ID");
-            // }
-            texts[h][i] = ids_new[texts[h][i]];
-            // Rcout << "CONVERT " 
-            //       << texts[h][i] << " -> " 
+            if (texts[h][i] < 0 || ids_new.size() <= texts[h][i]) {
+                throw std::range_error("Invalid new token ID");
+            }
+            // Rcout << "CONVERT "
+            //       << texts[h][i] << " -> "
             //       << ids_new[texts[h][i]] << "\n";
+            texts[h][i] = ids_new[texts[h][i]];
         }
     }
-#endif
+//#endif
 
     std::vector<std::string> types_new;
     types_new.reserve(ids_new.size());
