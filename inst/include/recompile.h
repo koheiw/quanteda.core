@@ -167,9 +167,9 @@ inline Tokens recompile(Texts texts,
             types_ = encode(types_);
         }
         Tokens texts_ = Rcpp::wrap(texts);
-        texts_.attr("padding") = (bool)flags_used.at(0);
-        texts_.attr("types") = types_;
         texts_.attr("class") = "tokens";
+        texts_.attr("types") = types_;
+        texts_.attr("padding") = (bool)flags_used.at(0);
         return texts_;
     }
     
@@ -211,9 +211,9 @@ inline Tokens recompile(Texts texts,
         types_new_ = encode(types_new_);
         // dev::stop_timer("Encode", timer);
     }
+    texts_.attr("class") = "tokens";
     texts_.attr("types") = types_new_;
     texts_.attr("padding") = (bool)flags_used.at(0);
-    texts_.attr("class") = "tokens";
     return texts_;
     
 }
