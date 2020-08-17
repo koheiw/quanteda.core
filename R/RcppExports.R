@@ -29,8 +29,8 @@ qatd_cpp_tokens_ngrams <- function(texts_, types_, delim_, ns_, skips_) {
     .Call(`_quanteda_core_qatd_cpp_tokens_ngrams`, texts_, types_, delim_, ns_, skips_)
 }
 
-qatd_cpp_tokens_recompile <- function(texts_, types_, gap = TRUE, dup = TRUE) {
-    .Call(`_quanteda_core_qatd_cpp_tokens_recompile`, texts_, types_, gap, dup)
+qatd_cpp_tokens_recompile <- function(texts_, types_, check_gap = TRUE, check_dup = TRUE) {
+    .Call(`_quanteda_core_qatd_cpp_tokens_recompile`, texts_, types_, check_gap, check_dup)
 }
 
 qatd_cpp_tokens_replace <- function(texts_, types_, patterns_, replacements_) {

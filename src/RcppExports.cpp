@@ -117,16 +117,16 @@ BEGIN_RCPP
 END_RCPP
 }
 // qatd_cpp_tokens_recompile
-List qatd_cpp_tokens_recompile(const List& texts_, const CharacterVector types_, const bool gap, const bool dup);
-RcppExport SEXP _quanteda_core_qatd_cpp_tokens_recompile(SEXP texts_SEXP, SEXP types_SEXP, SEXP gapSEXP, SEXP dupSEXP) {
+List qatd_cpp_tokens_recompile(const List& texts_, const CharacterVector types_, const bool check_gap, const bool check_dup);
+RcppExport SEXP _quanteda_core_qatd_cpp_tokens_recompile(SEXP texts_SEXP, SEXP types_SEXP, SEXP check_gapSEXP, SEXP check_dupSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< const List& >::type texts_(texts_SEXP);
     Rcpp::traits::input_parameter< const CharacterVector >::type types_(types_SEXP);
-    Rcpp::traits::input_parameter< const bool >::type gap(gapSEXP);
-    Rcpp::traits::input_parameter< const bool >::type dup(dupSEXP);
-    rcpp_result_gen = Rcpp::wrap(qatd_cpp_tokens_recompile(texts_, types_, gap, dup));
+    Rcpp::traits::input_parameter< const bool >::type check_gap(check_gapSEXP);
+    Rcpp::traits::input_parameter< const bool >::type check_dup(check_dupSEXP);
+    rcpp_result_gen = Rcpp::wrap(qatd_cpp_tokens_recompile(texts_, types_, check_gap, check_dup));
     return rcpp_result_gen;
 END_RCPP
 }
