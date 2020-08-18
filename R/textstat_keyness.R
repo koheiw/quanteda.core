@@ -21,6 +21,7 @@
 #'   defaults, for instance to apply the Williams correction to the chi2
 #'   measure.  Specifying a correction for the `"exact"` and `"pmi"`
 #'   measures has no effect and produces a warning.
+#' @param ... not used
 #' @references Bondi, M. & Scott, M. (eds) (2010). *Keyness in
 #'   Texts*. Amsterdam, Philadelphia: John Benjamins.
 #'
@@ -68,7 +69,8 @@
 textstat_keyness <- function(x, target = 1L,
                              measure = c("chi2", "exact", "lr", "pmi"),
                              sort = TRUE,
-                             correction = c("default", "yates", "williams", "none")) {
+                             correction = c("default", "yates", "williams", "none"),
+                             ...) {
     UseMethod("textstat_keyness")
 }
 
@@ -76,19 +78,19 @@ textstat_keyness <- function(x, target = 1L,
 textstat_keyness.default <- function(x, target = 1L,
                                      measure = c("chi2", "exact", "lr", "pmi"),
                                      sort = TRUE,
-                                     correction = c("default", "yates", "williams", "none")) {
+                                     correction = c("default", "yates", "williams", "none"),
+                                     ...) {
     stop(friendly_class_undefined_message(class(x), "textstat_keyness"))
 }
 
 #' @export
-textstat_keyness.dfm <- function(x, target = 1L,
-                                 measure = c("chi2", "exact", "lr", "pmi"),
-                                 sort = TRUE,
-                                 correction = c("default", "yates", "williams", "none")) {
-
+textstat_keyness.dfm <- function(x, target = 1L, measure = c("chi2", "exact", "lr", "pmi"), 
+                                 sort = TRUE, 
+                                 correction = c("default", "yates", "williams", "none"),
+                                 old = FALSE) {
     x <- as.dfm(x)
     if (!sum(x)) stop(message_error("dfm_empty"))
-
+    
     measure <- match.arg(measure)
     correction <- match.arg(correction)
     # error checking
@@ -100,7 +102,7 @@ textstat_keyness.dfm <- function(x, target = 1L,
         stop("target index outside range of documents")
     if (is.logical(target) && length(target) != ndoc(x))
         stop("logical target value length must equal the number of documents")
-
+    
     # convert all inputs into logical vector
     if (is.numeric(target)) {
         target <- seq(ndoc(x)) %in% target
@@ -111,12 +113,12 @@ textstat_keyness.dfm <- function(x, target = 1L,
     } else {
         stop("target must be numeric, character or logical")
     }
-
+    
     # check if number of target documents < ndoc
     if (sum(target) >= ndoc(x)) {
         stop("target cannot be all the documents")
     }
-
+    
     # use original docnames only when there are two (different) documents
     if (ndoc(x) == 2 && length(unique(docnames(x))) > 1) {
         label <- docnames(x)[order(target, decreasing = TRUE)]
@@ -129,29 +131,46 @@ textstat_keyness.dfm <- function(x, target = 1L,
     }
     grouping <- factor(target, levels = c(TRUE, FALSE), labels = label)
     temp <- dfm_group(x, groups = grouping)
-
-    if (measure == "chi2") {
-        result <- keyness_chi2_dt(temp, correction)
-    } else if (measure == "lr") {
-        result <- keyness_lr(temp, correction)
-    } else if (measure == "exact") {
-        if (!correction %in% c("default", "none"))
-            warning("correction is always none for measure exact")
-        result <- keyness_exact(temp)
-    } else if (measure == "pmi") {
-        if (!correction %in% c("default", "none"))
-            warning("correction is always none for measure pmi")
-        result <- keyness_pmi(temp)
+    
+    if (old) {
+        if (measure == "chi2") {
+            result <- keyness_chi2_dt(temp, correction)
+        } else if (measure == "lr") {
+            result <- keyness_lr(temp, correction)
+        } else if (measure == "exact") {
+            if (!correction %in% c("default", "none"))
+                warning("correction is always none for exact")
+            result <- keyness_exact(temp)
+        } else if (measure == "pmi") {
+            if (!correction %in% c("default", "none"))
+                warning("correction is always none for pmi")
+            result <- keyness_pmi(temp)
+        }
     } else {
-        stop(measure, " not yet implemented for textstat_keyness")
+        if (measure == "exact") {
+            if (measure == "exact" && !correction %in% c("default", "none"))
+                warning("correction is always none for exact")
+            result <- keyness_exact(temp)
+        } else {
+            if (measure == "pmi" && !correction %in% c("default", "none"))
+                warning("correction is always none for pmi")
+            result <- data.frame(
+                feature = featnames(temp), 
+                stat = qatd_cpp_keyness(temp, measure, correction),
+                p = NA,
+                n_target = as.vector(temp[1, ]),
+                n_reference = as.vector(temp[2,]),
+                stringsAsFactors = FALSE
+            )
+            result$p <- 1 - stats::pchisq(abs(result$stat), 1) # abs() for pmi
+        }  
     }
-
-    if (sort)
+    names(result)[2] <- switch(measure, chi2 = 'chi2', exact = 'exact', lr = "G2", pmi = "pmi")
+    if (sort) 
         result <- result[order(result[, 2], decreasing = TRUE), ]
-
+    rownames(result) <- NULL    
     attr(result, "groups") <- docnames(temp)
     class(result) <- c("keyness", "textstat", "data.frame")
-    rownames(result) <- as.character(seq_len(nrow(result)))
     return(result)
 }
 
@@ -176,7 +195,7 @@ textstat_keyness.dfm <- function(x, target = 1L,
 #'
 #'
 keyness_chi2_dt <- function(x, correction = c("default", "yates", "williams", "none")) {
-
+    
     correction <- match.arg(correction)
     a <- b <- c <- d <- N <- E <- chi2 <- p <- cor_app <- q <- NULL
     if (ndoc(x) > 2) stop("x can only have 2 rows")
@@ -186,7 +205,7 @@ keyness_chi2_dt <- function(x, correction = c("default", "yates", "williams", "n
     dt[, c("c", "d") := list(sum(x[1, ]) - a, sum(x[2, ]) - b)]
     dt[, N := (a + b + c + d)]
     dt[, E := (a + b) * (a + c) / N]
-
+    
     if (correction == "default" | correction == "yates") {
         dt[, cor_app := (((a + b) * (a + c) / N < 5 | (a + b) * (b + d) / N < 5 |
                               (a + c) * (c + d) / N < 5 | (c + d) * (b + d) / N < 5)
@@ -208,10 +227,10 @@ keyness_chi2_dt <- function(x, correction = c("default", "yates", "williams", "n
     } else {
         dt[, chi2 := (N * abs(a * d - b * c) ^ 2) / ((a + b) * (c + d) * (a + c) * (b + d)) * ifelse(a > E, 1, -1)]
     }
-
+    
     # compute p-values
     dt[, p := 1 - stats::pchisq(abs(chi2), 1)]
-
+    
     data.frame(feature = dt$feature,
                chi2 = dt[, chi2],
                p = dt[, p],
@@ -229,14 +248,14 @@ keyness_chi2_dt <- function(x, correction = c("default", "yates", "williams", "n
 #' @examples
 #' quanteda.core:::keyness_chi2_stats(dfmat)
 keyness_chi2_stats <- function(x) {
-
+    
     sums <- rowSums(x)
     result <- as.data.frame(
         do.call(rbind, apply(x, 2, function(y) keyness(as.numeric(y[1]),
-                                                              as.numeric(y[2]),
-                                                              sums[1], sums[2])))
+                                                       as.numeric(y[2]),
+                                                       sums[1], sums[2])))
     )
-
+    
     data.frame(feature = colnames(x),
                chi2 = result$chi2,
                p = result$p,
@@ -252,7 +271,7 @@ keyness_chi2_stats <- function(x) {
 #' @param sum_f total of all reference words
 #' @keywords internal
 keyness <- function(t, f, sum_t, sum_f) {
-
+    
     tb <- as.table(rbind(c(t, f), c(sum_t - t, sum_f - f)))
     suppressWarnings(chi <- stats::chisq.test(tb))
     t_exp <- chi$expected[1, 1]
@@ -278,7 +297,7 @@ keyness_exact <- function(x) {
                     data.frame(or = as.numeric(et$estimate), p = et$p.value)
                 }))
     )
-
+    
     data.frame(feature = colnames(x),
                or = result$or,
                p = result$p,
@@ -296,7 +315,7 @@ keyness_exact <- function(x) {
 #' @references
 #' <http://influentialpoints.com/Training/g-likelihood_ratio_test.htm>
 keyness_lr <- function(x, correction = c("default", "yates", "williams", "none")) {
-
+    
     correction <- match.arg(correction)
     epsilon <- 0.000000001; # to offset zero cell counts
     a <- b <- c <- d <- N <- E11 <- G2 <- p <- cor_app <- correction_sign <- q <- NULL
@@ -308,9 +327,9 @@ keyness_lr <- function(x, correction = c("default", "yates", "williams", "none")
     dt[, c("c", "d") := list(sum(x[1, ]) - a, sum(x[2, ]) - b)]
     dt[, N := (a + b + c + d)]
     dt[, E11 := (a + b) * (a + c) / N]
-
+    
     if (correction == "default" | correction == "yates") {
-
+        
         dt[, cor_app := (((a + b) * (a + c) / N < 5 | (a + b) * (b + d) / N < 5 |
                               (a + c) * (c + d) / N < 5 | (c + d) * (b + d) / N < 5)
                          & abs(a * d - b * c) > N / 2)]
@@ -325,13 +344,13 @@ keyness_lr <- function(x, correction = c("default", "yates", "williams", "none")
                                            b + ifelse(cor_app, ifelse(correction_sign, 0.5, -0.5), 0),
                                            c + ifelse(cor_app, ifelse(correction_sign, 0.5, -0.5), 0))]
     }
-
+    
     dt[, G2 := (2 * (a * log(a / E11 + epsilon) +
                          b * log(b / ((a + b) * (b + d) / N) + epsilon) +
                          c * log(c / ((a + c) * (c + d) / N) + epsilon) +
                          d * log(d / ((b + d) * (c + d) / N) + epsilon))) *
            ifelse(a > E11, 1, -1)]
-
+    
     if (correction == "williams") {
         # William's correction cannot be used if there are any zeros in the table
         # \url{http://influentialpoints.com/Training/g-likelihood_ratio_test.htm}
@@ -340,10 +359,10 @@ keyness_lr <- function(x, correction = c("default", "yates", "williams", "none")
                          1 + (N / (a + b) + N / (c + d) - 1) * (N / (a + c) + N / (b + d) - 1) / (6 * N))]
         dt[, G2 := G2 / q]
     }
-
+    
     # compute p-values
     dt[, p := 1 - stats::pchisq(abs(G2), 1)]
-
+    
     data.frame(feature = dt$feature,
                G2 = dt[, G2],
                p = dt[, p],
@@ -358,7 +377,7 @@ keyness_lr <- function(x, correction = c("default", "yates", "williams", "none")
 #' @examples
 #' quanteda.core:::keyness_pmi(dfmat)
 keyness_pmi <- function(x) {
-
+    
     a <- b <- c <- d <- N <- E11 <- pmi <- p <- NULL
     if (ndoc(x) > 2)
         stop("x can only have 2 rows")
@@ -370,13 +389,13 @@ keyness_pmi <- function(x) {
     dt[, E11 := (a + b) * (a + c) / N]
     epsilon <- .000000001  # to offset zero cell counts
     dt[, pmi :=   log(a / E11 + epsilon)]
-
+    
     #normalized pmi
     #dt[, pmi :=   log(a  / E11) * ifelse(a > E11, 1, -1)/(-log(a/N)) ]
-
+    
     # compute p-values
     dt[, p := 1 - stats::pchisq(abs(pmi), 1)]
-
+    
     data.frame(feature = dt$feature,
                pmi = dt[, pmi],
                p = dt[, p],
