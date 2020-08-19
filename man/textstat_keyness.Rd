@@ -9,7 +9,8 @@ textstat_keyness(
   target = 1L,
   measure = c("chi2", "exact", "lr", "pmi"),
   sort = TRUE,
-  correction = c("default", "yates", "williams", "none")
+  correction = c("default", "yates", "williams", "none"),
+  ...
 )
 }
 \arguments{
@@ -34,6 +35,8 @@ Specifying a value other than the default can be used to override the
 defaults, for instance to apply the Williams correction to the chi2
 measure.  Specifying a correction for the \code{"exact"} and \code{"pmi"}
 measures has no effect and produces a warning.}
+
+\item{...}{not used}
 }
 \value{
 a data.frame of computed statistics and associated p-values, where
