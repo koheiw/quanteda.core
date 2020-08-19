@@ -115,7 +115,10 @@ struct KeynessWorker : public Worker {
 // [[Rcpp::export]]
 Rcpp::NumericVector qatd_cpp_keyness(
     arma::sp_mat& mt, const std::string measure, const std::string correction
-) {
+) { 
+    if (mt.n_rows != 2)
+        throw std::range_error("Invalid DFM object");
+        
     DoubleParams stats(mt.n_cols);
     KeynessFun fun = get_keyness_func(mt, measure, correction);
     
