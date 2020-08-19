@@ -6,10 +6,10 @@ using namespace quanteda;
 static const double epsilon = 0.000000001; // the same value as R code
 
 inline double yates_correction(
-        const double& a, 
-        const double& b, 
-        const double& c, 
-        const double& d
+        const double &a, 
+        const double &b, 
+        const double &c, 
+        const double &d
 ) {
     double N = a + b + c + d;
     if (std::abs(a *  d - b * c) >= N / 2
@@ -26,10 +26,10 @@ inline double yates_correction(
 }
 
 inline double williams_correction(
-        const double& a, 
-        const double& b, 
-        const double& c, 
-        const double& d
+        const double &a, 
+        const double &b, 
+        const double &c, 
+        const double &d
 ) {
     if (a * b * c * d == 0) return 1.0;
     double N = a + b + c + d;
@@ -37,8 +37,8 @@ inline double williams_correction(
 }
 
 inline double chisq_lambda(
-        const double& a, 
-        const double& b,
+        const double &a, 
+        const double &b,
         const arma::colvec &mrg,
         const std::string &cor
 ) {
@@ -53,8 +53,8 @@ inline double chisq_lambda(
 }
 
 inline double lr_lambda(
-        const double& a, 
-        const double& b,
+        const double &a, 
+        const double &b,
         const arma::colvec &mrg,
         const std::string &cor
 ) {
@@ -85,8 +85,8 @@ inline double lr_lambda(
 }
 
 inline double pmi_lambda(
-        const double& a, 
-        const double& b,
+        const double &a, 
+        const double &b,
         const arma::colvec &mrg,
         const bool normal = false
 ) {
@@ -133,7 +133,7 @@ struct KeynessWorker : public Worker {
 
 // [[Rcpp::export]]
 Rcpp::NumericVector qatd_cpp_keyness(
-    arma::sp_mat& mt, 
+    arma::sp_mat &mt, 
     const std::string measure, 
     const std::string correct
 ) { 
